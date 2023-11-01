@@ -12,8 +12,9 @@ import wave
 from scipy.fftpack import fft
 
 
-
-
+# waterfall width and height. Consider make it configurable using GUI.
+waterfall_width = 128
+waterfall_height = 80
 
 # Create Object
 root = Tk()
@@ -65,44 +66,63 @@ def ploat_graph(data):
     plt.tight_layout()
 
     # Display the plots
-    plt.show()
+    # Spartak: do not use plt.show inside thread
+    #plt.show()
 
 # work function
 def work():
+    global TerminateProgram
+    global WaterFallObject
+    global My_Canvas
+
     audio_float = pasrseAudio()
-    ploat_graph(audio_float)
+    # Spartak: do not use plot inside thread
+    #ploat_graph(audio_float)
 
     frequency_channels = 1024
     divided_arrays = [audio_float[i:i + frequency_channels] for i in range(0, len(audio_float), frequency_channels)]
     print('arrays',len(divided_arrays))
 
-    fft_results = []  # To store FFT results for each segment
-
-    for i in range (0,len(divided_arrays)):
-        y = divided_arrays[i]
-        yf = fft(y) / frequency_channels
-        yf = 2.0 / frequency_channels * np.abs(yf[:frequency_channels// 2])
-        fft_results.append(yf)
-
-
-    print('fft', len(fft_results[1]))
+    #print('fft', len(fft_results[1]))
     print("Thread started")
     time.sleep(1)
 
-    WaterFallObject.update(fft_results)
+    #WaterFallObject.update(fft_results)
 
+    # Initial waterfall content
+    fft_results = np.zeros([waterfall_height,waterfall_width])
 
-    # while (False == TerminateProgram):
-    #     print("thread is running....")
-    #
-    #     # Update waterfall
-    #     global WaterFallObject
-    #     global My_Canvas
-    #     new_content = np.random.randint(0, 10, size=(100, 100))
-    #     # print('new content',new_content)
-    #     WaterFallObject.update(new_content)
-    #     My_Canvas.draw()
-    #     time.sleep(1)
+    fft_block_idx = 0
+
+    while (False == TerminateProgram):
+        print("thread is running....")
+
+        y = divided_arrays[fft_block_idx]
+        yf = fft(y) / frequency_channels
+        yf = 2.0 / frequency_channels * np.abs(yf[:frequency_channels// 2])
+
+        # Prepare waterfall content.
+        # As a workaround cut yf to width corresponding to waterfall width.
+        yf = yf[:waterfall_width]
+
+        # Scale amplitude to make it visible on the waterfall. Tune it later.
+        yf = yf * 500
+
+        # roll waterfall content for one position from down to up.
+        fft_results = np.roll(fft_results, -1, axis=0)
+        # update the most bottom line in the waterfall with the new FFT data
+        fft_results[-1,:] = yf
+
+        # Update waterfall
+        WaterFallObject.update(fft_results)
+        My_Canvas.draw()
+        time.sleep(0.01)
+
+        # Increment current FFT block index.
+        fft_block_idx = fft_block_idx + 1
+        # Check if all block processed and stop to avoid overflow.
+        if (fft_block_idx >= len(divided_arrays)):
+            TerminateProgram = True
 
     print("Thread stop")
 
@@ -113,7 +133,7 @@ def plot():
 Button(root, text="Exit", command=click_process).pack()
 
 # Create Waterfall object
-WaterFallObject = Waterfall(100,100)
+WaterFallObject = Waterfall(waterfall_width, waterfall_height)
 
 Button(root, text="figure", command=plot).pack()
 
