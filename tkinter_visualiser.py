@@ -13,11 +13,45 @@ from scipy.fftpack import fft
 
 
 # waterfall width and height. Consider make it configurable using GUI.
-waterfall_width = 128
+waterfall_width = 120
 waterfall_height = 80
+
+import tkinter as tk
+
 
 # Create Object
 root = Tk()
+frequency_channels = 128
+
+# Initial value for waterfall_height of spectogram
+entry_label = tk.Label(root, text="Enter a value (50-200):")
+entry_label.pack()
+entry_value_var = StringVar(root)
+entry_value = tk.Entry(root,textvariable=entry_value_var)
+entry_value.pack()
+entry_value.insert(0, "50")
+def on_select(event):
+    # Get the selected value and update the frequency_channels variable
+    index = listbox.curselection()[0]
+    global frequency_channels
+    frequency_channels = int(listbox.get(index))
+    label.config(text=f"Selected Frequency Channels: {frequency_channels}")
+
+# Initial value for frequency_channels
+
+label = tk.Label(root, text=f"Selected Frequency Channels: {frequency_channels}")
+label.pack()
+
+listbox = tk.Listbox(root)
+options = [128, 256, 512, 1024]
+
+for option in options:
+    listbox.insert(tk.END, option)
+
+listbox.bind('<<ListboxSelect>>', on_select)
+listbox.pack()
+
+
 
 # Set geometry
 root.geometry("700x500")
@@ -27,7 +61,7 @@ global WaterFallObject
 global My_Canvas
 TerminateProgram = False
 
-BLOCK_DIVIDER = 128
+
 def pasrseAudio():
     with wave.open('test.wav', 'rb') as wav_file:
         audio_data = wav_file.readframes(wav_file.getnframes())
@@ -75,22 +109,29 @@ def work():
     global WaterFallObject
     global My_Canvas
 
+    waterfall_height = int(entry_value_var.get())
+
+
     audio_float = pasrseAudio()
     # Spartak: do not use plot inside thread
     #ploat_graph(audio_float)
 
-    frequency_channels = 1024
     divided_arrays = [audio_float[i:i + frequency_channels] for i in range(0, len(audio_float), frequency_channels)]
+    print('global list', waterfall_height)
     print('arrays',len(divided_arrays))
 
-    #print('fft', len(fft_results[1]))
+
     print("Thread started")
     time.sleep(1)
 
     #WaterFallObject.update(fft_results)
+    # if frequency_channels == 128:
+    #     print('if')
+    #     waterfall_width = 60
 
     # Initial waterfall content
-    fft_results = np.zeros([waterfall_height,waterfall_width])
+    result_as_integer = int(frequency_channels / 2)
+    fft_results = np.zeros([waterfall_height, result_as_integer])
 
     fft_block_idx = 0
 
@@ -100,11 +141,12 @@ def work():
         y = divided_arrays[fft_block_idx]
         yf = fft(y) / frequency_channels
         yf = 2.0 / frequency_channels * np.abs(yf[:frequency_channels// 2])
+        print('not cut',len(yf))
 
         # Prepare waterfall content.
         # As a workaround cut yf to width corresponding to waterfall width.
-        yf = yf[:waterfall_width]
-
+        yf = yf[:result_as_integer]
+        print('cut',len(yf))
         # Scale amplitude to make it visible on the waterfall. Tune it later.
         yf = yf * 500
 
@@ -128,6 +170,9 @@ def work():
 
 def plot():
     print("plot button clicked")
+    # Start processing thread
+    t1 = Thread(target=work)
+    t1.start()
 
 # Create Button
 Button(root, text="Exit", command=click_process).pack()
@@ -145,11 +190,8 @@ My_Canvas = FigureCanvasTkAgg(WaterFallObject.fig,
 # placing the canvas on the Tkinter window
 My_Canvas.get_tk_widget().pack()
 
-# Start processing thread
-t1 = Thread(target=work)
-t1.start()
-
 # Execute Tkinter
 root.mainloop()
 
 print("Exit program")
+
