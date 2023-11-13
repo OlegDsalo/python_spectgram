@@ -19,7 +19,6 @@ waterfall_height = 80
 frequency_channels = 128
 max_amplitude = 10
 
-
 # Create Object
 root = Tk()
 
@@ -30,6 +29,7 @@ entry_value_var = StringVar(root)
 entry_value = tk.Entry(root, textvariable=entry_value_var, font={"Josefin Sans", 13})
 entry_value.pack()
 entry_value.insert(0, "50")
+
 
 def on_select(event):
     # Get the selected value and update the frequency_channels variable
@@ -42,8 +42,9 @@ def on_select(event):
     else:
         print("No item selected in listbox2")
 
+
 def on_amplitude(event):
-    # Get the selected value and update the frequency_channels variable
+    # Get the selected value and update the max_amplitude variable
     selected_indices = listbox2.curselection()
     if selected_indices:
         index2 = listbox2.curselection()[0]
@@ -56,7 +57,8 @@ def on_amplitude(event):
 
 
 # Initial value for frequency_channels
-label = tk.Label(root, text=f"Selected Frequency Channels: {frequency_channels}", font={"Josefin Sans", 15}, padx=5,pady=5)
+label = tk.Label(root, text=f"Selected Frequency Channels: {frequency_channels}", font={"Josefin Sans", 15}, padx=5,
+                 pady=5)
 label.pack()
 
 listbox = tk.Listbox(root, font={"Josefin Sans", 14}, height=4, selectbackground="red")
@@ -64,10 +66,9 @@ options = [128, 256, 512, 1024]
 
 for option in options:
     listbox.insert(tk.END, option)
-    
+
 listbox.bind('<<ListboxSelect>>', on_select)
 listbox.pack(side=tk.TOP, padx=10)
-
 
 label2 = tk.Label(root, text=f"Select max apmlitude color in spectrogram: {max_amplitude}", font={"Josefin Sans", 15},
                   padx=5, pady=5)
@@ -75,7 +76,7 @@ label2.pack()
 listbox2 = tk.Listbox(root, font={"Josefin Sans", 14}, height=4, selectbackground="red")
 amplitude_options = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
-for amplitude_option  in amplitude_options:
+for amplitude_option in amplitude_options:
     listbox2.insert(tk.END, amplitude_option)
 
 listbox2.bind('<<ListboxSelect>>', on_amplitude)
@@ -91,7 +92,7 @@ global My_Canvas
 TerminateProgram = False
 
 
-def pasrseAudio():
+def pasrse_audio():
     with wave.open('test.wav', 'rb') as wav_file:
         audio_data = wav_file.readframes(wav_file.getnframes())
         # Process audio_data as needed (e.g., convert to NumPy array)
@@ -99,12 +100,6 @@ def pasrseAudio():
     # Convert audio_array to floating-point values in the range Amplitude;
     audio_float = (audio_array / (2 ** 15 - 1)) * 10
     return audio_float
-
-
-def click_process():
-    global TerminateProgram
-    print("Button clicked")
-    TerminateProgram = True
 
 
 def ploat_graph(data):
@@ -138,12 +133,9 @@ def work():
     global WaterFallObject
     global My_Canvas
 
-    print('123',max_amplitude,frequency_channels)
     waterfall_height = int(entry_value_var.get())
 
-    audio_float = pasrseAudio()
-    # Spartak: do not use plot inside thread
-    # ploat_graph(audio_float)
+    audio_float = pasrse_audio()
 
     divided_arrays = [audio_float[i:i + frequency_channels] for i in range(0, len(audio_float), frequency_channels)]
 
@@ -164,10 +156,9 @@ def work():
         yf = 2.0 / frequency_channels * np.abs(yf[:frequency_channels // 2])
 
         # Prepare waterfall content.
-        # As a workaround cut yf to width corresponding to waterfall width.
         yf = yf[:result_as_integer]
 
-        # Scale amplitude to make it visible on the waterfall. Tune it later.
+        # Scale amplitude to make it visible on the waterfall.
         yf = yf * 500
 
         # roll waterfall content for one position from down to up.
@@ -189,18 +180,23 @@ def work():
     print("Thread stop")
 
 
+def click_process():
+    global TerminateProgram
+    print("Button clicked")
+    TerminateProgram = True
+
+
 def plot():
     print("plot button clicked")
     # Start processing thread
     global TerminateProgram
-    print("Button clicked")
     TerminateProgram = False
     t1 = Thread(target=work)
     t1.start()
 
 
 # Create Button
-Button(root, text="Exit",padx=5, background='red', foreground='white', command=click_process).pack(pady=5)
+Button(root, text="Exit", padx=5, background='red', foreground='white', command=click_process).pack(pady=5)
 
 # Create Waterfall object
 WaterFallObject = Waterfall(waterfall_width, waterfall_height)
